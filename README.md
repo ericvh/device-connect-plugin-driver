@@ -239,6 +239,41 @@ docker compose --profile sidecars up plugin-host-sidecars
 
 Persistent volumes: `/data/capabilities` (plugins), `/data/artifacts` (local artifact store), `/data/creds` (portal `.creds.json`).
 
+## Deploy CLI (agents)
+
+Install or manage plugins on a **remote** `plugin_host` from your workstation (no SSH). Uses the same RPCs as agents (`install_plugin_from_bundle`, `load_plugin`, etc.) over NATS/portal messaging.
+
+```bash
+# Install examples/hello-world on a running plugin host
+dc-plugin-deploy install examples/hello-world \
+  --host plugin-host-1 \
+  --tenant mytenant \
+  --credentials ~/.config/device-connect/agent.creds.json
+
+# Same via dc-plugin-driver subcommand
+dc-plugin-driver deploy install examples/hello-world --host plugin-host-1 --json
+
+# Dry-run (validate + show planned RPC, no network)
+dc-plugin-driver deploy install examples/hello-world --host plugin-host-1 --dry-run --json
+
+# Install from HTTPS URL
+dc-plugin-deploy install --url https://artifacts.example.com/hello-world.tgz \
+  --digest sha256:… --host plugin-host-1 --credentials …
+
+# Lifecycle
+dc-plugin-deploy list --host plugin-host-1 --credentials …
+dc-plugin-deploy load hello-world --host plugin-host-1 --credentials …
+dc-plugin-deploy unload hello-world --host plugin-host-1 --credentials …
+
+# Arbitrary RPC (e.g. smoke test)
+dc-plugin-deploy invoke hello_world --params '{"name":"agent"}' \
+  --host plugin-host-1 --credentials …
+```
+
+Environment fallbacks: `NATS_URL` / `MESSAGING_URLS`, `NATS_CREDENTIALS_FILE`, `TENANT`, `DC_PLUGIN_DEPLOY_TIMEOUT`.
+
+The invoker credentials must have Device Connect permission to invoke the **target** host device (not the host's own creds unless you are installing from the host itself).
+
 ## Portal provisioning
 
 ```bash

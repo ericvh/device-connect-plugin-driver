@@ -191,8 +191,15 @@ def _artifact_main(argv: list[str]) -> None:
 def main() -> None:
     if len(sys.argv) > 1 and sys.argv[1] == "validate":
         _validate_main(sys.argv[2:])
+        return
     if len(sys.argv) > 1 and sys.argv[1] == "artifact":
         _artifact_main(sys.argv[2:])
+        return
+    if len(sys.argv) > 1 and sys.argv[1] == "deploy":
+        from device_connect_plugin_driver.deploy_cli import deploy_main
+
+        deploy_main(sys.argv[2:])
+        return
     asyncio.run(_run_cli(build_run_parser().parse_args()))
 
 

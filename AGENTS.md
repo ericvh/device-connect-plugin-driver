@@ -118,6 +118,18 @@ class MyServiceCapability:
 
 All installs are **RPC invokes** on the same device credential.
 
+**From an agent workstation** (no SSH), use `dc-plugin-deploy` to pack a local folder and call `install_plugin_from_bundle`:
+
+```bash
+dc-plugin-deploy install ./my-service \
+  --host plugin-host-1 \
+  --tenant TENANT \
+  --credentials ~/.config/device-connect/agent.creds.json \
+  --json
+```
+
+Dry-run: add `--dry-run`. See README **Deploy CLI** for `load`, `list`, `unload`, and `invoke`.
+
 | Method | RPC | When |
 |--------|-----|------|
 | Base64 bundle | `install_plugin_from_bundle` | Small plugin; agent embeds archive |

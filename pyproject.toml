@@ -46,6 +46,7 @@ Issues = "https://github.com/ericvh/device-connect-plugin-driver/issues"
 [project.scripts]
 device-connect-plugin-driver = "device_connect_plugin_driver.__main__:main"
 dc-plugin-driver = "device_connect_plugin_driver.__main__:main"
+dc-plugin-deploy = "device_connect_plugin_driver.deploy_cli:deploy_main"
 dc-plugin-sidecar = "device_connect_plugin_driver.sidecar:main"
 
 [tool.pytest.ini_options]
