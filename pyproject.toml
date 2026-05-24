@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "device-connect-plugin-driver"
-version = "0.1.0"
+version = "0.1.1"
 description = "Device Connect plugin enabler — load capabilities over the mesh under one credential"
 readme = "README.md"
 requires-python = ">=3.12,<3.14"

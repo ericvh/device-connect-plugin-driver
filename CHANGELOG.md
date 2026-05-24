@@ -7,34 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-05-24
+
 ### Changed
 
-- CI: loopback D2D test in unit job; two-process NATS integration job
-- Near-term TODO items completed (integration tests, portal-provision.sh, PyPI publish workflow)
-
-### Added
-
-- Docker: production [Dockerfile](Dockerfile), [.dockerignore](.dockerignore), [compose.yaml](compose.yaml) with volumes for capabilities/artifacts/creds
-- GitHub Actions [.github/workflows/docker.yml](.github/workflows/docker.yml) — build and push `device-connect-plugin-driver` and `dc-plugin-sidecar` to GHCR
-- `dc-plugin-deploy` CLI — install/load/list/invoke plugins on a remote `plugin_host` over NATS
-- Local plugin artifact store (`ArtifactStore`, `publish_plugin_artifact`, `list_plugin_artifacts`, `get_plugin_artifact_url` RPCs)
-- `dc-plugin-driver artifact publish|list|serve` and `dc-plugin-driver validate` CLI subcommands
-- Opt-in manifest dependency install (`DC_PLUGIN_INSTALL_DEPENDENCIES=1`, per-RPC `install_dependencies`)
-- `plugin_loaded` / `plugin_unloaded` events emitted on load/unload/reload and sidecar deploy
-- `tests/test_plugin_validation.py`, `tests/test_artifact_store.py`, `tests/test_plugin_host_events.py`
-- `tests/test_d2d_loopback.py` — loopback messaging D2D load/invoke test
-- `tests/integration/` — two-process NATS integration test + plugin host runner
-- `examples/portal-provision.sh` — dc-portalctl sample for plugin_host
-- `.github/workflows/publish.yml` — PyPI publish on GitHub release
-- `docs/PUBLISHING.md` — PyPI trusted publishing instructions
-- PyPI classifiers and project URLs in `pyproject.toml`
-- Renamed from decente working name; package `device_connect_plugin_driver`, env prefix `DC_PLUGIN_*`
+- Docker CI builds and pushes **multi-arch** images (`linux/amd64`, `linux/arm64`) to GHCR
 
 ## [0.1.0] - 2026-05-24
 
 ### Added
 
 - Initial **Device Connect plugin host driver** (`device_type = plugin_host`)
+- Docker: production [Dockerfile](Dockerfile), [.dockerignore](.dockerignore), [compose.yaml](compose.yaml); GHCR workflow for host and sidecar images
+- `dc-plugin-deploy` CLI — install/load/list/invoke plugins on a remote `plugin_host` over NATS
+- Local plugin artifact store and delivery RPCs; `dc-plugin-driver validate` / `artifact` subcommands
+- Opt-in manifest dependency install; `plugin_loaded` / `plugin_unloaded` events
+- [SECURITY.md](SECURITY.md) threat model
+- CI: loopback D2D test, two-process NATS integration, `examples/portal-provision.sh`, `docs/PUBLISHING.md`
 - In-process capability loading via `CapabilityDriverMixin`
 - Host RPCs: `get_status`, `list_plugins`, `load_plugin`, `unload_plugin`, `reload_plugin`, `install_plugin`
 - Mesh advertisement refresh after load/unload (portal re-register + D2D presence burst)
@@ -47,4 +36,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unit tests: `test_plugin_host`, `test_config`, `test_hello_world`
 - Apache-2.0 license
 
+[0.1.1]: https://github.com/ericvh/device-connect-plugin-driver/releases/tag/v0.1.1
 [0.1.0]: https://github.com/ericvh/device-connect-plugin-driver/releases/tag/v0.1.0

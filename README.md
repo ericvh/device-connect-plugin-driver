@@ -192,7 +192,7 @@ See [examples/plugin-manifests/README.md](examples/plugin-manifests/README.md).
 
 ## Container deployment
 
-Images are built on every push to `main` and published to GitHub Container Registry (see [.github/workflows/docker.yml](.github/workflows/docker.yml)).
+Images are built on every push to `main` and published to GitHub Container Registry as **multi-arch** manifests (`linux/amd64`, `linux/arm64`) — see [.github/workflows/docker.yml](.github/workflows/docker.yml).
 
 | Image | Dockerfile | Purpose |
 |-------|------------|---------|
