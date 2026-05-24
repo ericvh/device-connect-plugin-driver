@@ -189,6 +189,14 @@ Host env knobs:
 
 See [examples/plugin-manifests/README.md](examples/plugin-manifests/README.md).
 
+## Portal provisioning
+
+```bash
+./examples/portal-provision.sh plugin-host-001 erivan01
+```
+
+See [docs/PUBLISHING.md](docs/PUBLISHING.md) for PyPI release steps.
+
 ## Agent discoverability (mesh)
 
 `plugin_host` devices advertise **labels** on registration:
@@ -206,7 +214,7 @@ list_plugin_examples {}
 
 `get_status` also includes an `authoring` block with RPC names. Full playbook: [AGENTS.md](AGENTS.md).
 
-**Templates:** `src/device_connect_plugin_driver/templates/plugin/` (rendered by `get_plugin_template`) · **Example:** [examples/plugin-template/](examples/plugin-template/) · **Minimal:** [examples/hello-world/](examples/hello-world/)
+**Templates:** `src/device-connect-plugin-driver/templates/plugin/` (rendered by `get_plugin_template`) · **Example:** [examples/plugin-template/](examples/plugin-template/) · **Minimal:** [examples/hello-world/](examples/hello-world/)
 
 ## Sidecar / concentrator mode
 

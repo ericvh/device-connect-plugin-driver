@@ -8,7 +8,7 @@ on:
 
 jobs:
   unit-tests:
-    name: Python ${{ matrix.python-version }}
+    name: Unit tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -32,4 +32,37 @@ jobs:
         run: ruff check src tests
 
       - name: Unit tests
-        run: pytest -v --tb=short
+        run: pytest tests -v --tb=short -m "not integration"
+
+      - name: Loopback D2D test
+        run: pytest tests/test_d2d_loopback.py -v --tb=short
+
+  integration:
+    name: Two-process D2D (NATS)
+    runs-on: ubuntu-latest
+    services:
+      nats:
+        image: nats:2.10-alpine
+        ports:
+          - 4222:4222
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install package and dev dependencies
+        run: |
+          python -m pip install -U pip
+          pip install -e ".[dev]"
+
+      - name: Two-process integration test
+        env:
+          NATS_URL: nats://127.0.0.1:4222
+          DEVICE_CONNECT_ALLOW_INSECURE: "true"
+          DEVICE_CONNECT_DISCOVERY_MODE: d2d
+        run: |
+          pytest tests/integration/test_d2d_plugin_invoke.py::test_two_process_load_plugin_and_hello_world -v --tb=short

@@ -9,29 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Renamed project from **decente** to **device-connect-plugin-driver** (package `device_connect_plugin_driver`, CLI `device-connect-plugin-driver`)
-- Environment prefix `DECENTE_*` → `DC_PLUGIN_*`; mesh labels `decente:*` → `plugin_driver:*`
+- CI: loopback D2D test in unit job; two-process NATS integration job
+- Near-term TODO items completed (integration tests, portal-provision.sh, PyPI publish workflow)
 
 ### Added
 
-- `AGENTS.md` — agent playbook for authoring, packaging, and installing plugins
-- `get_plugin_authoring_guide`, `get_plugin_template`, `list_plugin_examples` RPCs
-- `src/device_connect_plugin_driver/authoring.py` + packaged `src/device_connect_plugin_driver/templates/plugin/`
-- `examples/plugin-template/` — pre-rendered my-service example
-- Device labels for mesh discoverability (`plugin_driver:authoring_rpc`, etc.)
-- `tests/test_authoring.py`
-- `install_plugin_from_url` — HTTPS download + digest-verified extract
-- `install_plugin_from_bundle` — base64 archive install
-- `install_plugin_from_docker` — docker manifest sidecar deploy (proxied on host)
-- `install_plugin_from_manifest` — unified python/docker manifest dispatcher
-- `src/device_connect_plugin_driver/plugin_delivery.py` — fetch, verify, extract helpers
-- `examples/plugin-manifests/` — docker manifest sample + delivery docs
-- `tests/test_plugin_delivery.py`
-
-### Changed
-
-- `SidecarSpec` supports image-only deploy (optional capability mount)
-- README and DESIGN document remote agent delivery flow
+- `tests/test_d2d_loopback.py` — loopback messaging D2D load/invoke test
+- `tests/integration/` — two-process NATS integration test + plugin host runner
+- `examples/portal-provision.sh` — dc-portalctl sample for plugin_host
+- `.github/workflows/publish.yml` — PyPI publish on GitHub release
+- `docs/PUBLISHING.md` — PyPI trusted publishing instructions
+- PyPI classifiers and project URLs in `pyproject.toml`
+- Renamed from decente working name; package `device_connect_plugin_driver`, env prefix `DC_PLUGIN_*`
 
 ## [0.1.0] - 2026-05-24
 
@@ -50,4 +39,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unit tests: `test_plugin_host`, `test_config`, `test_hello_world`
 - Apache-2.0 license
 
-[0.1.0]: https://github.com/example/device-connect-plugin-driver/releases/tag/v0.1.0
+[0.1.0]: https://github.com/ericvh/device-connect-plugin-driver/releases/tag/v0.1.0

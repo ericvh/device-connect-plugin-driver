@@ -11,6 +11,15 @@ requires-python = ">=3.12,<3.14"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Eric Van Hensbergen" }]
 keywords = ["device-connect", "plugins", "capabilities", "iot", "edge", "zenoh"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: System :: Networking",
+]
 dependencies = [
   "device-connect-edge>=0.2.2",
   "aiohttp>=3.9",
@@ -25,7 +34,14 @@ dev = [
   "pytest>=8.0",
   "pytest-asyncio>=0.23",
   "ruff>=0.8",
+  "build>=1.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/ericvh/device-connect-plugin-driver"
+Repository = "https://github.com/ericvh/device-connect-plugin-driver"
+Documentation = "https://github.com/ericvh/device-connect-plugin-driver/blob/main/README.md"
+Issues = "https://github.com/ericvh/device-connect-plugin-driver/issues"
 
 [project.scripts]
 device-connect-plugin-driver = "device_connect_plugin_driver.__main__:main"
@@ -34,6 +50,9 @@ dc-plugin-sidecar = "device_connect_plugin_driver.sidecar:main"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+markers = [
+  "integration: tests requiring NATS or multi-process infrastructure",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

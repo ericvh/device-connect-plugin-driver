@@ -2,10 +2,11 @@
 
 ## Near term
 
-- [ ] GitHub Actions CI (Python 3.12/3.13, ruff, pytest)
-- [ ] Integration test: two-process D2D load_plugin → hello_world invoke
-- [ ] Publish package to PyPI (`pip install device-connect-plugin-driver`)
-- [ ] `examples/portal-provision.sh` — sample `dc-portalctl devices provision` for `plugin_host`
+- [x] GitHub Actions CI (Python 3.12/3.13, ruff, pytest) — `.github/workflows/ci.yml`
+- [x] Integration test: two-process D2D load_plugin → hello_world — `tests/integration/` + NATS job in CI
+- [x] Loopback D2D simulation (no NATS) — `tests/test_d2d_loopback.py`
+- [x] Publish package to PyPI — `.github/workflows/publish.yml`, `docs/PUBLISHING.md` (requires PyPI trusted publisher + GitHub release)
+- [x] `examples/portal-provision.sh` — sample `dc-portalctl devices provision` for `plugin_host`
 
 ## Plugin platform
 
