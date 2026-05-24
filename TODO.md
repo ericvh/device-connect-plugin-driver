@@ -30,7 +30,7 @@
 - [ ] Health-check sidecars before registering proxied RPCs
 - [ ] Sidecar function schemas merged into host capability advertisement
 - [ ] Rootless / podman support
-- [ ] CI job building `Dockerfile.sidecar` and running hello-world in sidecar mode
+- [ ] CI job building `Dockerfile.sidecar` and running hello-world in sidecar mode (image build in docker.yml; runtime sidecar test still open)
 
 ## Adapters
 

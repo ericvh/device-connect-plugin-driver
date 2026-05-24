@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Docker: production [Dockerfile](Dockerfile), [.dockerignore](.dockerignore), [compose.yaml](compose.yaml) with volumes for capabilities/artifacts/creds
+- GitHub Actions [.github/workflows/docker.yml](.github/workflows/docker.yml) — build and push `device-connect-plugin-driver` and `dc-plugin-sidecar` to GHCR
 - Local plugin artifact store (`ArtifactStore`, `publish_plugin_artifact`, `list_plugin_artifacts`, `get_plugin_artifact_url` RPCs)
 - `dc-plugin-driver artifact publish|list|serve` and `dc-plugin-driver validate` CLI subcommands
 - Opt-in manifest dependency install (`DC_PLUGIN_INSTALL_DEPENDENCIES=1`, per-RPC `install_dependencies`)

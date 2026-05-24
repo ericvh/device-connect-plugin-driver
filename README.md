@@ -12,6 +12,7 @@ License: [Apache-2.0](LICENSE)
 | [AGENTS.md](AGENTS.md) | **Agent playbook** — scaffold, package, and install plugins |
 | [DESIGN.md](DESIGN.md) | Architecture, credential model, harness vs concentrator |
 | [TODO.md](TODO.md) | Planned work and open items |
+| [SECURITY.md](SECURITY.md) | Threat model and hardening |
 | [CHANGELOG.md](CHANGELOG.md) | Version history |
 
 ## Does existing device-connect support this?
@@ -188,6 +189,55 @@ Host env knobs:
 - `DC_PLUGIN_MAX_PLUGIN_BYTES` — max download/bundle size (default 10 MiB)
 
 See [examples/plugin-manifests/README.md](examples/plugin-manifests/README.md).
+
+## Container deployment
+
+Images are built on every push to `main` and published to GitHub Container Registry (see [.github/workflows/docker.yml](.github/workflows/docker.yml)).
+
+| Image | Dockerfile | Purpose |
+|-------|------------|---------|
+| `ghcr.io/ericvh/device-connect-plugin-driver` | [Dockerfile](Dockerfile) | Plugin host (in-process + optional sidecar concentrator) |
+| `ghcr.io/ericvh/dc-plugin-sidecar` | [Dockerfile.sidecar](Dockerfile.sidecar) | Single-capability HTTP sidecar |
+
+**Pull and run (D2D dev):**
+
+```bash
+docker pull ghcr.io/ericvh/device-connect-plugin-driver:latest
+
+docker run --rm -it \
+  -e DEVICE_CONNECT_ALLOW_INSECURE=true \
+  -v plugin-caps:/data/capabilities \
+  -v plugin-artifacts:/data/artifacts \
+  -p 8790:8790 \
+  ghcr.io/ericvh/device-connect-plugin-driver:latest \
+  --allow-insecure \
+  --device-id plugin-host-1 \
+  --tenant dev \
+  --capabilities-dir /data/capabilities \
+  --no-auto-load
+```
+
+**Portal mode** — mount provisioned credentials:
+
+```bash
+docker run --rm -it \
+  -v $HOME/.config/device-connect/plugin-host.creds.json:/data/creds/host.creds.json:ro \
+  -v plugin-caps:/data/capabilities \
+  ghcr.io/ericvh/device-connect-plugin-driver:latest \
+  --portal \
+  --portal-credentials /data/creds/host.creds.json \
+  --capabilities-dir /data/capabilities
+```
+
+**Compose** (local build or pull):
+
+```bash
+docker compose up --build
+# Sidecar concentrator mode (Docker socket required):
+docker compose --profile sidecars up plugin-host-sidecars
+```
+
+Persistent volumes: `/data/capabilities` (plugins), `/data/artifacts` (local artifact store), `/data/creds` (portal `.creds.json`).
 
 ## Portal provisioning
 

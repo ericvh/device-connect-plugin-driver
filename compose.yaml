@@ -1,10 +1,27 @@
-# Device Connect plugin host with demo capability (D2D dev)
+# Device Connect plugin host — container deployment
+#
+#   docker compose up --build
+#
+# Portal mode (mount provisioned creds):
+#   docker compose run --rm plugin-host \
+#     --portal --portal-credentials /data/creds/plugin-host.creds.json
+#
+# Sidecar concentrator mode requires Docker socket (see profile below).
+
 services:
   plugin-host:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: device-connect-plugin-driver:local
     environment:
       DEVICE_CONNECT_ALLOW_INSECURE: "true"
-      DC_PLUGIN_CAPABILITIES_DIR: /app/capabilities
+      DEVICE_CONNECT_DISCOVERY_MODE: d2d
+      DC_PLUGIN_CAPABILITIES_DIR: /data/capabilities
+      DC_PLUGIN_ARTIFACT_DIR: /data/artifacts
+      # DC_PLUGIN_ARTIFACT_SERVE: "1"
+      # DC_PLUGIN_INSTALL_REQUIRE_DIGEST: "1"
+      # DC_PLUGIN_INSTALL_URL_ALLOWLIST: artifacts.example.com
     command:
       - --allow-insecure
       - --device-id
@@ -12,8 +29,42 @@ services:
       - --tenant
       - dev
       - --capabilities-dir
-      - /app/capabilities
-    ports: []
+      - /data/capabilities
+      - --no-auto-load
+    volumes:
+      - plugin-capabilities:/data/capabilities
+      - plugin-artifacts:/data/artifacts
+      # - ./path/to/plugin-host.creds.json:/data/creds/plugin-host.creds.json:ro
+    ports:
+      - "8790:8790"
+    restart: unless-stopped
 
-  # Optional: build sidecar image for concentrator mode
-  # docker build -f Dockerfile.sidecar -t dc-plugin-sidecar:local .
+  # Optional: plugin host with Docker sidecar support (runs as root for docker.sock)
+  plugin-host-sidecars:
+    profiles: [sidecars]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: device-connect-plugin-driver:local
+    user: root
+    environment:
+      DEVICE_CONNECT_ALLOW_INSECURE: "true"
+      DC_PLUGIN_ENABLE_SIDECARS: "1"
+      DC_PLUGIN_CAPABILITIES_DIR: /data/capabilities
+    command:
+      - --allow-insecure
+      - --enable-sidecars
+      - --device-id
+      - plugin-host-sidecars
+      - --tenant
+      - dev
+      - --capabilities-dir
+      - /data/capabilities
+    volumes:
+      - plugin-capabilities:/data/capabilities
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+
+volumes:
+  plugin-capabilities:
+  plugin-artifacts:
