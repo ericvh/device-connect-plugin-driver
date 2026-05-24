@@ -14,10 +14,10 @@
 - [x] `install_plugin_from_bundle` (base64 archive)
 - [x] `install_plugin_from_docker` / unified `install_plugin_from_manifest`
 - [x] Agent authoring guide + template RPCs + AGENTS.md
-- [ ] Portal artifact store (hosting); today URL must be HTTPS you control
-- [ ] Opt-in dependency install (`pip install` from manifest with sandbox)
-- [ ] Plugin validation CLI (`dc-plugin-driver validate capabilities/my-plugin`)
-- [ ] Emit `plugin_loaded` / `plugin_unloaded` from host RPC handlers (decorators exist, not wired)
+- [x] Portal artifact store (hosting); local store + HTTP serve + `publish_plugin_artifact` RPCs
+- [x] Opt-in dependency install (`pip install` from manifest with sandbox)
+- [x] Plugin validation CLI (`dc-plugin-driver validate capabilities/my-plugin`)
+- [x] Emit `plugin_loaded` / `plugin_unloaded` from host RPC handlers (decorators exist, not wired)
 
 ## Upstream device-connect
 

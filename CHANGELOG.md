@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Local plugin artifact store (`ArtifactStore`, `publish_plugin_artifact`, `list_plugin_artifacts`, `get_plugin_artifact_url` RPCs)
+- `dc-plugin-driver artifact publish|list|serve` and `dc-plugin-driver validate` CLI subcommands
+- Opt-in manifest dependency install (`DC_PLUGIN_INSTALL_DEPENDENCIES=1`, per-RPC `install_dependencies`)
+- `plugin_loaded` / `plugin_unloaded` events emitted on load/unload/reload and sidecar deploy
+- `tests/test_plugin_validation.py`, `tests/test_artifact_store.py`, `tests/test_plugin_host_events.py`
 - `tests/test_d2d_loopback.py` — loopback messaging D2D load/invoke test
 - `tests/integration/` — two-process NATS integration test + plugin host runner
 - `examples/portal-provision.sh` — dc-portalctl sample for plugin_host

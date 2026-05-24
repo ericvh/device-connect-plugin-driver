@@ -147,7 +147,8 @@ def build_authoring_guide(*, docs_base: str | None = None) -> dict[str, Any]:
             {"rpc": "install_plugin_from_docker", "when": "container sidecar with dc-plugin HTTP API"},
             {"rpc": "install_plugin_from_manifest", "when": "unified python or docker manifest"},
             {"rpc": "install_plugin", "when": "path already exists on device filesystem"},
-            {"rpc": "load_plugin", "when": "plugin folder already under capabilities_dir"},
+            {"rpc": "publish_plugin_artifact", "when": "publish to local artifact store on host"},
+            {"rpc": "get_plugin_artifact_url", "when": "resolve URL+digest for install_plugin_from_url"},
         ],
         "capability_conventions": {
             "constructor": "def __init__(self, device=None) — device is the host DeviceRuntime",

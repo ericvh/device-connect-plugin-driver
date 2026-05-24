@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import shutil
 from datetime import UTC, datetime
 from pathlib import Path
@@ -13,8 +14,15 @@ from device_connect_edge.drivers import DeviceDriver, emit, rpc
 from device_connect_edge.drivers.capability_loader import CapabilityDriverMixin, LoadedCapability
 from device_connect_edge.types import DeviceIdentity, DeviceStatus
 
+from device_connect_plugin_driver.artifact_store import ArtifactServer, ArtifactStore, ArtifactStoreConfig
 from device_connect_plugin_driver.authoring import build_authoring_guide, build_plugin_template, list_plugin_examples
 from device_connect_plugin_driver.concentrator import SidecarConcentrator, SidecarSpec
+from device_connect_plugin_driver.plugin_dependencies import (
+    DependencyInstallConfig,
+    ensure_deps_on_path,
+    install_plugin_dependencies,
+    remove_deps_from_path,
+)
 from device_connect_plugin_driver.plugin_delivery import (
     DeliveryConfig,
     decode_bundle,
@@ -64,6 +72,17 @@ class PluginHostDriver(CapabilityDriverMixin, DeviceDriver):
         self._sidecar_proxy = SidecarProxyRegistry()
         self._concentrator: SidecarConcentrator | None = None
         self._delivery_config = DeliveryConfig.from_env()
+        self._deps_config = DependencyInstallConfig.from_env()
+        self._plugin_deps_paths: dict[str, Path | None] = {}
+        self._artifact_config = ArtifactStoreConfig.from_env(capabilities_dir=self._capabilities_dir)
+        self._artifact_store = ArtifactStore(self._artifact_config)
+        self._artifact_server: ArtifactServer | None = None
+        if os.environ.get("DC_PLUGIN_ARTIFACT_SERVE", "").lower() in {"1", "true", "yes"}:
+            self._artifact_server = ArtifactServer(
+                self._artifact_store,
+                host=self._artifact_config.serve_host,
+                port=self._artifact_config.serve_port,
+            )
         if enable_sidecars:
             self._concentrator = SidecarConcentrator(network=sidecar_network)
         self.init_capabilities(self._capabilities_dir)
@@ -89,6 +108,8 @@ class PluginHostDriver(CapabilityDriverMixin, DeviceDriver):
 
     async def connect(self) -> None:
         self._capabilities_dir.mkdir(parents=True, exist_ok=True)
+        if self._artifact_server is not None:
+            await self._artifact_server.start()
         if self._auto_load:
             count = await self.load_capabilities()
             logger.info("Auto-loaded %d capabilities from %s", count, self._capabilities_dir)
@@ -96,12 +117,15 @@ class PluginHostDriver(CapabilityDriverMixin, DeviceDriver):
             await self._concentrator.ensure_network()
         self._connected = True
         logger.info(
-            "Plugin host connected (capabilities_dir=%s sidecars=%s)",
+            "Plugin host connected (capabilities_dir=%s sidecars=%s artifacts=%s)",
             self._capabilities_dir,
             self._enable_sidecars,
+            str(self._artifact_config.artifact_dir),
         )
 
     async def disconnect(self) -> None:
+        if self._artifact_server is not None:
+            await self._artifact_server.stop()
         if self._concentrator is not None:
             await self._concentrator.stop_all()
         await self._sidecar_proxy.clear()
@@ -141,6 +165,70 @@ class PluginHostDriver(CapabilityDriverMixin, DeviceDriver):
                 "class_name": manifest.get("class_name"),
             },
         }
+
+    async def _emit_plugin_loaded(self, plugin_id: str) -> None:
+        loaded = self.get_loaded_capabilities().get(plugin_id)
+        functions = list(loaded.functions) if loaded else []
+        try:
+            await self.plugin_loaded(plugin_id=plugin_id, functions=functions)
+        except Exception:
+            logger.exception("Failed to emit plugin_loaded for %s", plugin_id)
+
+    async def _emit_plugin_unloaded(self, plugin_id: str) -> None:
+        try:
+            await self.plugin_unloaded(plugin_id=plugin_id)
+        except Exception:
+            logger.exception("Failed to emit plugin_unloaded for %s", plugin_id)
+
+    async def load_capability(self, capability_id: str, *, install_dependencies: bool | None = None) -> bool:
+        cap_path = self._capabilities_dir / capability_id
+        should_install = (
+            install_dependencies if install_dependencies is not None else self._deps_config.enabled
+        )
+        if should_install and cap_path.is_dir():
+            try:
+                install_plugin_dependencies(
+                    cap_path,
+                    capabilities_dir=self._capabilities_dir,
+                    plugin_id=capability_id,
+                    config=self._deps_config,
+                )
+            except RuntimeError as exc:
+                logger.error("Dependency install failed for %s: %s", capability_id, exc)
+                return False
+
+        site = ensure_deps_on_path(self._capabilities_dir, capability_id)
+        self._plugin_deps_paths[capability_id] = site
+        result = await super().load_capability(capability_id)
+        if result:
+            await self._emit_plugin_loaded(capability_id)
+        return result
+
+    async def unload_capability(self, capability_id: str) -> bool:
+        result = await super().unload_capability(capability_id)
+        if result:
+            remove_deps_from_path(self._plugin_deps_paths.pop(capability_id, None))
+            await self._emit_plugin_unloaded(capability_id)
+        return result
+
+    async def load_capabilities(self) -> int:
+        if not self._capability_loader or not self._capabilities_dir.exists():
+            return 0
+        count = 0
+        for cap_path in sorted(self._capabilities_dir.iterdir()):
+            if not cap_path.is_dir() or cap_path.name.startswith("."):
+                continue
+            if (cap_path / "manifest.json").is_file() and await self.load_capability(cap_path.name):
+                count += 1
+        logger.info("Loaded %d capabilities from %s", count, self._capabilities_dir)
+        return count
+
+    async def unload_capabilities(self) -> None:
+        loaded_ids = list(self.get_loaded_capabilities())
+        await super().unload_capabilities()
+        for plugin_id in loaded_ids:
+            remove_deps_from_path(self._plugin_deps_paths.pop(plugin_id, None))
+            await self._emit_plugin_unloaded(plugin_id)
 
     @rpc()
     async def get_status(self) -> dict[str, Any]:
@@ -216,7 +304,7 @@ class PluginHostDriver(CapabilityDriverMixin, DeviceDriver):
         available: list[dict[str, Any]] = []
         if self._capabilities_dir.is_dir():
             for path in sorted(self._capabilities_dir.iterdir()):
-                if not path.is_dir():
+                if not path.is_dir() or path.name.startswith("."):
                     continue
                 manifest_path = path / "manifest.json"
                 entry: dict[str, Any] = {"id": path.name, "path": str(path), "loaded": path.name in loaded}
@@ -238,13 +326,14 @@ class PluginHostDriver(CapabilityDriverMixin, DeviceDriver):
         }
 
     @rpc()
-    async def load_plugin(self, plugin_id: str) -> dict[str, Any]:
+    async def load_plugin(self, plugin_id: str, install_dependencies: bool | None = None) -> dict[str, Any]:
         """Load a capability plugin by directory name under capabilities_dir.
 
         Args:
             plugin_id: Capability folder name (must contain manifest.json).
+            install_dependencies: Opt-in pip install from manifest (default: DC_PLUGIN_INSTALL_DEPENDENCIES).
         """
-        ok = await self.load_capability(plugin_id)
+        ok = await self.load_capability(plugin_id, install_dependencies=install_dependencies)
         if not ok:
             return {
                 "status": "error",
@@ -329,6 +418,7 @@ class PluginHostDriver(CapabilityDriverMixin, DeviceDriver):
         plugin_id: str,
         *,
         load: bool = True,
+        install_dependencies: bool | None = None,
     ) -> dict[str, Any]:
         dest = self._capabilities_dir / plugin_id
         if not (dest / "manifest.json").is_file():
@@ -344,7 +434,7 @@ class PluginHostDriver(CapabilityDriverMixin, DeviceDriver):
                 "installed_to": str(dest),
                 "loaded": False,
             }
-        load_result = await self.load_plugin(plugin_id)
+        load_result = await self.load_plugin(plugin_id, install_dependencies=install_dependencies)
         return {
             "status": "success" if load_result.get("status") == "success" else "partial",
             "plugin_id": plugin_id,
@@ -360,6 +450,7 @@ class PluginHostDriver(CapabilityDriverMixin, DeviceDriver):
         digest: str | None = None,
         format: str = "auto",
         load: bool = True,
+        install_dependencies: bool | None = None,
     ) -> dict[str, Any]:
         """Download a plugin archive from HTTPS and install it on this host.
 
@@ -369,6 +460,7 @@ class PluginHostDriver(CapabilityDriverMixin, DeviceDriver):
             digest: Optional sha256 digest (hex or sha256:hex) for verification.
             format: Archive format — auto, tar.gz, tgz, or zip.
             load: Load the plugin into the running host after extract (default true).
+            install_dependencies: Opt-in pip install from manifest after extract.
         """
         try:
             data = await fetch_url(url, config=self._delivery_config)
@@ -385,7 +477,11 @@ class PluginHostDriver(CapabilityDriverMixin, DeviceDriver):
                 archive_format=fmt,  # type: ignore[arg-type]
                 filename=url,
             )
-            return await self._install_extracted_plugin(resolved_id, load=load)
+            return await self._install_extracted_plugin(
+                resolved_id,
+                load=load,
+                install_dependencies=install_dependencies,
+            )
         except Exception as exc:
             logger.exception("install_plugin_from_url failed")
             return {"status": "error", "message": str(exc), "url": url}
@@ -398,6 +494,7 @@ class PluginHostDriver(CapabilityDriverMixin, DeviceDriver):
         digest: str | None = None,
         format: str = "auto",
         load: bool = True,
+        install_dependencies: bool | None = None,
     ) -> dict[str, Any]:
         """Install a plugin from a base64-encoded archive (.tar.gz or .zip).
 
@@ -407,6 +504,7 @@ class PluginHostDriver(CapabilityDriverMixin, DeviceDriver):
             digest: Optional sha256 digest (hex or sha256:hex) for verification.
             format: Archive format — auto, tar.gz, tgz, or zip.
             load: Load the plugin after extract (default true).
+            install_dependencies: Opt-in pip install from manifest after extract.
         """
         try:
             data = decode_bundle(bundle_b64, max_bytes=self._delivery_config.max_bytes)
@@ -422,7 +520,11 @@ class PluginHostDriver(CapabilityDriverMixin, DeviceDriver):
                 plugin_id=plugin_id,
                 archive_format=fmt,  # type: ignore[arg-type]
             )
-            return await self._install_extracted_plugin(resolved_id, load=load)
+            return await self._install_extracted_plugin(
+                resolved_id,
+                load=load,
+                install_dependencies=install_dependencies,
+            )
         except Exception as exc:
             logger.exception("install_plugin_from_bundle failed")
             return {"status": "error", "message": str(exc)}
@@ -468,6 +570,12 @@ class PluginHostDriver(CapabilityDriverMixin, DeviceDriver):
                     driver=self,
                 )
                 await self._refresh_mesh_advertisement()
+                sidecars = await self._sidecar_proxy.list_sidecars()
+                functions = sidecars.get(parsed.id, {}).get("functions", [])
+                try:
+                    await self.plugin_loaded(plugin_id=parsed.id, functions=functions)
+                except Exception:
+                    logger.exception("Failed to emit plugin_loaded for sidecar %s", parsed.id)
             return {
                 "status": "success",
                 "plugin_id": parsed.id,
@@ -506,6 +614,7 @@ class PluginHostDriver(CapabilityDriverMixin, DeviceDriver):
                 digest=manifest.get("digest"),
                 format=manifest.get("format", "auto"),
                 load=load,
+                install_dependencies=manifest.get("install_dependencies"),
             )
         if "url" in manifest:
             return await self.install_plugin_from_url(
@@ -514,11 +623,85 @@ class PluginHostDriver(CapabilityDriverMixin, DeviceDriver):
                 digest=manifest.get("digest"),
                 format=manifest.get("format", "auto"),
                 load=load,
+                install_dependencies=manifest.get("install_dependencies"),
             )
         return {
             "status": "error",
             "message": "python manifest requires bundle_b64 or url",
         }
+
+    @rpc()
+    async def publish_plugin_artifact(
+        self,
+        plugin_id: str | None = None,
+        *,
+        bundle_b64: str | None = None,
+        version: str | None = None,
+    ) -> dict[str, Any]:
+        """Publish a plugin archive to the local artifact store.
+
+        Pack from capabilities_dir/{plugin_id} or accept bundle_b64. Use
+        get_plugin_artifact_url then install_plugin_from_url on this or another host.
+
+        Args:
+            plugin_id: Plugin folder name under capabilities_dir (required unless bundle only).
+            bundle_b64: Optional pre-built archive instead of packing from disk.
+            version: Optional version label for the stored artifact filename.
+        """
+        try:
+            if bundle_b64:
+                from device_connect_plugin_driver.plugin_delivery import decode_bundle
+
+                data = decode_bundle(bundle_b64, max_bytes=self._delivery_config.max_bytes)
+                if not plugin_id:
+                    return {"status": "error", "message": "plugin_id required with bundle_b64"}
+                record = self._artifact_store.publish(data, plugin_id=plugin_id, version=version)
+            elif plugin_id:
+                plugin_dir = self._capabilities_dir / plugin_id
+                if not plugin_dir.is_dir():
+                    return {"status": "error", "message": f"plugin not found: {plugin_dir}"}
+                record = self._artifact_store.publish_plugin_dir(
+                    plugin_dir,
+                    plugin_id=plugin_id,
+                    version=version,
+                )
+            else:
+                return {"status": "error", "message": "plugin_id or bundle_b64 required"}
+            artifact = record.to_dict()
+            artifact["url"] = self._artifact_store.get_artifact(record.plugin_id)["url"]
+            artifact["artifact_dir"] = str(self._artifact_config.artifact_dir)
+            return {"status": "success", "artifact": artifact}
+        except Exception as exc:
+            logger.exception("publish_plugin_artifact failed")
+            return {"status": "error", "message": str(exc)}
+
+    @rpc()
+    async def list_plugin_artifacts(self) -> dict[str, Any]:
+        """List plugin archives in the local artifact store."""
+        artifacts = self._artifact_store.list_artifacts()
+        return {
+            "status": "success",
+            "artifacts": artifacts,
+            "artifact_dir": str(self._artifact_config.artifact_dir),
+            "serve_enabled": self._artifact_server is not None,
+        }
+
+    @rpc()
+    async def get_plugin_artifact_url(
+        self,
+        plugin_id: str,
+        version: str | None = None,
+    ) -> dict[str, Any]:
+        """Return download URL and digest for a published plugin artifact.
+
+        Args:
+            plugin_id: Plugin id in the artifact store.
+            version: Optional version label (defaults to latest published).
+        """
+        artifact = self._artifact_store.get_artifact(plugin_id, version=version)
+        if artifact is None:
+            return {"status": "error", "message": f"artifact not found for {plugin_id}"}
+        return {"status": "success", "artifact": artifact}
 
     @rpc()
     async def deploy_sidecar(
@@ -560,6 +743,12 @@ class PluginHostDriver(CapabilityDriverMixin, DeviceDriver):
             driver=self,
         )
         await self._refresh_mesh_advertisement()
+        sidecars = await self._sidecar_proxy.list_sidecars()
+        functions = sidecars.get(plugin_id, {}).get("functions", [])
+        try:
+            await self.plugin_loaded(plugin_id=plugin_id, functions=functions)
+        except Exception:
+            logger.exception("Failed to emit plugin_loaded for sidecar %s", plugin_id)
         return {"status": "success", "deployment": deployment.model_dump()}
 
     @rpc()
@@ -574,6 +763,7 @@ class PluginHostDriver(CapabilityDriverMixin, DeviceDriver):
         await self._sidecar_proxy.unregister_sidecar(plugin_id)
         stopped = await self._concentrator.stop(plugin_id)
         await self._refresh_mesh_advertisement()
+        await self._emit_plugin_unloaded(plugin_id)
         return {"status": "success", "plugin_id": plugin_id, "stopped": stopped}
 
     @emit()
