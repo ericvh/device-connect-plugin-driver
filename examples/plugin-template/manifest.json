@@ -1,0 +1,10 @@
+{
+  "id": "my-service",
+  "version": "0.1.0",
+  "description": "Example capability plugin — replace with your service description",
+  "entry_point": "capability.py",
+  "class_name": "MyServiceCapability",
+  "dependencies": {
+    "python": []
+  }
+}

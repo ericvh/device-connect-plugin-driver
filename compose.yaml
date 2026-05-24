@@ -1,0 +1,19 @@
+# Device Connect plugin host with demo capability (D2D dev)
+services:
+  plugin-host:
+    build: .
+    environment:
+      DEVICE_CONNECT_ALLOW_INSECURE: "true"
+      DC_PLUGIN_CAPABILITIES_DIR: /app/capabilities
+    command:
+      - --allow-insecure
+      - --device-id
+      - plugin-host-compose
+      - --tenant
+      - dev
+      - --capabilities-dir
+      - /app/capabilities
+    ports: []
+
+  # Optional: build sidecar image for concentrator mode
+  # docker build -f Dockerfile.sidecar -t dc-plugin-sidecar:local .

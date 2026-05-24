@@ -1,0 +1,7 @@
+{
+  "id": "hello-world",
+  "version": "0.1.0",
+  "description": "Minimal hello-world plugin for testing load and invoke",
+  "entry_point": "capability.py",
+  "class_name": "HelloWorldCapability"
+}

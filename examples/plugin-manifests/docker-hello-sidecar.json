@@ -1,0 +1,11 @@
+{
+  "type": "docker",
+  "id": "hello-sidecar",
+  "image": "dc-plugin-sidecar:local",
+  "port": 8787,
+  "pull": false,
+  "env": {
+    "DC_PLUGIN_CAPABILITY_DIR": "/capabilities/hello-world",
+    "DC_PLUGIN_PLUGIN_ID": "hello-world"
+  }
+}

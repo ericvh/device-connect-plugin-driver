@@ -1,0 +1,15 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir "device-connect-edge>=0.2.2" aiohttp pydantic
+
+COPY pyproject.toml README.md ./
+COPY src ./src
+
+RUN pip install --no-cache-dir .
+
+ENV DC_PLUGIN_SIDECAR_PORT=8787
+EXPOSE 8787
+
+ENTRYPOINT ["dc-plugin-sidecar"]
